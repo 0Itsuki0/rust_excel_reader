@@ -58,7 +58,7 @@ pub enum CellValueType {
 
 impl CellValueType {
     pub(crate) fn from_raw(
-        cell: XlsxCell,
+        cell: &XlsxCell,
         shared_string_items: Vec<XlsxSharedStringItem>,
         stylesheet: XlsxStyleSheet,
         color_scheme: Option<XlsxColorScheme>,
@@ -68,33 +68,33 @@ impl CellValueType {
         }
 
         // inline string
-        if let Some(is) = cell.inline_string {
+        if let Some(ref is) = cell.inline_string {
             return Self::from_string_item(is, stylesheet.clone(), color_scheme.clone());
         }
 
         // formula
-        if let Some(f) = cell.formula {
-            let v = if let Some(cell_value) = cell.cell_value {
-                Some(cell_value.raw_value)
+        if let Some(ref f) = cell.formula {
+            let v = if let Some(ref cell_value) = cell.cell_value {
+                Some(cell_value.raw_value.clone())
             } else {
                 None
             };
             return Ok(Self::Formula(Formula {
-                formula: f.raw_value,
+                formula: f.raw_value.clone(),
                 last_calculated_value: v,
             }));
         }
 
-        if let Some(v) = cell.cell_value {
+        if let Some(ref v) = cell.cell_value {
             if v.raw_value.is_empty() {
                 return Ok(Self::Empty);
             }
             if cell.r#type.is_none() {
                 return Ok(Self::from_numeric_string(&v.raw_value));
             }
-            return match cell.r#type.unwrap().as_ref() {
+            return match cell.r#type.as_ref().unwrap().as_str() {
                 "b" => Ok(Self::Bool(string_to_bool(&v.raw_value).unwrap_or(true))),
-                "d" => Ok(Self::DateTime(v.raw_value)),
+                "d" => Ok(Self::DateTime(v.raw_value.clone())),
                 "n" => Ok(Self::from_numeric_string(&v.raw_value)),
                 "e" => Ok(Self::Error(CellErrorType::from_string(&v.raw_value)?)),
                 // shared string
@@ -103,8 +103,8 @@ impl CellValueType {
                     if index >= shared_string_items.len() {
                         bail!("Shared string index out of range.")
                     }
-                    let string_item = shared_string_items[index].clone();
-                    Self::from_string_item(string_item, stylesheet.clone(), color_scheme.clone())
+                    // let string_item = shared_string_items[index].clone();
+                    Self::from_string_item(&shared_string_items[index], stylesheet.clone(), color_scheme.clone())
                 }
                 // formula string
                 "str" => Ok(Self::from_numeric_string(&v.raw_value)), //bail!("cell has type str (formula) without <f> elements"),
@@ -120,12 +120,12 @@ impl CellValueType {
     }
 
     fn from_string_item(
-        string_item: XlsxStringItem,
+        string_item: &XlsxStringItem,
         stylesheet: XlsxStyleSheet,
         color_scheme: Option<XlsxColorScheme>,
     ) -> anyhow::Result<Self> {
         let phonetic_runs: Option<Vec<PhoneticRun>> =
-            if let Some(raw_run) = string_item.phonetic_run {
+            if let Some(ref raw_run) = string_item.phonetic_run {
                 if raw_run.is_empty() {
                     None
                 } else {
@@ -144,7 +144,7 @@ impl CellValueType {
 
         let mut phonetic_properties: Option<PhoneticProperties> = None;
         if phonetic_runs.is_some() && !phonetic_runs.clone().unwrap().is_empty() {
-            if let Some(ph_pr) = string_item.phonetic_properties {
+            if let Some(ref ph_pr) = string_item.phonetic_properties {
                 phonetic_properties = Some(PhoneticProperties::from_raw(
                     ph_pr,
                     stylesheet.clone(),
@@ -154,31 +154,31 @@ impl CellValueType {
         }
 
         // plain
-        if let Some(t) = string_item.text {
+        if let Some(ref t) = string_item.text {
             let plain = PlainText {
                 phonetic_properties,
                 phonetic_runs,
-                text: t,
+                text: t.clone(),
             };
             return Ok(Self::PlainText(plain));
         }
 
         // rich
-        if let Some(raw_runs) = string_item.rich_text_run {
+        if let Some(ref raw_runs) = string_item.rich_text_run {
             if raw_runs.is_empty() {
                 return Ok(Self::Empty);
             }
             let mut runs: Vec<RichTextRun> = vec![];
             for raw_run in raw_runs {
-                let Some(t) = raw_run.text else {
+                let Some(ref t) = raw_run.text else {
                     continue;
                 };
                 let font = Font::from_raw_run_properties(
-                    raw_run.run_properties,
+                    raw_run.run_properties.clone(),
                     stylesheet.clone().colors,
                     color_scheme.clone(),
                 );
-                runs.push(RichTextRun { font, text: t });
+                runs.push(RichTextRun { font, text: t.clone() });
             }
             if runs.is_empty() {
                 return Ok(Self::Empty);
