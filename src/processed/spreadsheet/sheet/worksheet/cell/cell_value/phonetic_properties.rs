@@ -56,7 +56,7 @@ pub struct PhoneticProperties {
 
 impl PhoneticProperties {
     pub(crate) fn from_raw(
-        properties: XlsxPhoneticProperties,
+        properties: &XlsxPhoneticProperties,
         stylesheet: XlsxStyleSheet,
         color_scheme: Option<XlsxColorScheme>,
     ) -> Self {
@@ -65,9 +65,9 @@ impl PhoneticProperties {
         let font = Font::from_raw_font(raw_font, stylesheet.colors, color_scheme);
 
         return Self {
-            alignment: PhoneticAlignmentValue::from_string(properties.alignment),
+            alignment: PhoneticAlignmentValue::from_string(properties.alignment.clone()),
             font,
-            r#type: PhoneticTypeValue::from_string(properties.r#type),
+            r#type: PhoneticTypeValue::from_string(properties.r#type.clone()),
         };
     }
 }

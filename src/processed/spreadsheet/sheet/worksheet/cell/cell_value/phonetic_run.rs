@@ -41,16 +41,16 @@ pub struct PhoneticRun {
 }
 
 impl PhoneticRun {
-    pub(crate) fn from_raw(run: XlsxPhoneticRun) -> Option<Self> {
-        let (Some(t), Some(s), Some(e)) =
-            (run.text, run.base_text_start_index, run.base_text_end_index)
-        else {
-            return None;
-        };
-        return Some(Self {
-            text: t,
-            base_text_start_index: s,
-            base_text_end_index: e,
-        });
+    pub(crate) fn from_raw(run: &XlsxPhoneticRun) -> Option<Self> {
+        if run.text.is_none() || run.base_text_end_index.is_none() || run.base_text_start_index.is_none() { return None; }
+        // let (Some(t), Some(s), Some(e)) = (run.text, run.base_text_start_index, run.base_text_end_index)
+        // else {
+        //     return None;
+        // };
+        Some(Self {
+            text: run.text.clone().unwrap(),
+            base_text_start_index: run.base_text_start_index?,
+            base_text_end_index: run.base_text_end_index?,
+        })
     }
 }

@@ -50,6 +50,7 @@ use crate::{
         },
     },
 };
+use crate::processed::spreadsheet::sheet::worksheet::cell::cell_value::plain_text::PlainText;
 
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -138,12 +139,12 @@ impl Worksheet {
     /// If the cell is within a table that has different header row colors, column/row stripes, and etc.
     /// The appearance can be different.
     pub fn get_cell(&self, coordinate: Coordinate) -> anyhow::Result<Cell> {
-        if !self.coordinate_in_range(coordinate) {
-            bail!(
-                "Coordinate: {:?} is not within worksheet dimension.",
-                coordinate
-            )
-        }
+        // if !self.coordinate_in_range(coordinate) {
+        //     bail!(
+        //         "Coordinate: {:?} is not within worksheet dimension.",
+        //         coordinate
+        //     )
+        // }
         let Some(row) = self.get_raw_row(coordinate) else {
             return Ok(Cell::default(coordinate));
         };
@@ -155,24 +156,32 @@ impl Worksheet {
         let color_scheme = self.get_color_scheme();
 
         let col = self.get_raw_col_info(coordinate);
+        // let val = if let Some(value) = cell.cell_value {
+        //     value.raw_value
+        // } else { "".to_string() };
 
+        // let cell_value = CellValueType::PlainText(PlainText {
+        //     phonetic_properties: None,
+        //     phonetic_runs: None,
+        //     text: val,
+        // });
         let cell_value = CellValueType::from_raw(
-            cell.clone(),
+            &cell,
             *self.shared_string_items.clone(),
             *self.stylesheet.clone(),
             color_scheme.clone(),
         )?;
 
-        let num_format_id = self.get_id(cell.clone(), row.clone(), col.clone(), &|x| {
+        let num_format_id = self.get_id(&cell, &row, col.clone(), &|x| {
             self.get_number_format_id_helper(x)
         });
-        let fill_id = self.get_id(cell.clone(), row.clone(), col.clone(), &|x| {
+        let fill_id = self.get_id(&cell, &row, col.clone(), &|x| {
             self.get_fill_id_helper(x)
         });
-        let border_id = self.get_id(cell.clone(), row.clone(), col.clone(), &|x| {
+        let border_id = self.get_id(&cell, &row, col.clone(), &|x| {
             self.get_border_id_helper(x)
         });
-        let font_id = self.get_id(cell.clone(), row.clone(), col.clone(), &|x| {
+        let font_id = self.get_id(&cell, &row, col.clone(), &|x| {
             self.get_font_id_helper(x)
         });
         let alignment = self.get_alignment(cell.clone(), row.clone(), col.clone());
@@ -193,7 +202,7 @@ impl Worksheet {
             *self.stylesheet.clone(),
             color_scheme.clone(),
         );
-
+        // println!("12222222222222222222222222222222222");
         Ok(Cell {
             coordinate,
             value: cell_value,
@@ -569,8 +578,8 @@ impl Worksheet {
     /// * `get_number_format_id_helper`
     fn get_id(
         &self,
-        cell: XlsxCell,
-        row_info: XlsxRow,
+        cell: &XlsxCell,
+        row_info: &XlsxRow,
         col_info: Option<XlsxColumnInformation>,
         helper_function: &dyn Fn(u64) -> Option<u64>,
     ) -> Option<u64> {
@@ -730,14 +739,15 @@ impl Worksheet {
     }
 
     fn get_raw_cell(&self, coordinate: Coordinate, row: XlsxRow) -> Option<XlsxCell> {
-        let cells = row.cells.unwrap_or(vec![]);
-
-        let raw_cell: Vec<XlsxCell> = cells
-            .into_iter()
-            .filter(|c| c.coordinate == Some(coordinate))
-            .collect();
-
-        return raw_cell.first().cloned();
+        row.cells.as_ref()?.get(coordinate.col as usize).cloned()
+        // // let cells = row.cells.unwrap_or(vec![]);
+        //
+        // let raw_cell: Vec<XlsxCell> = cells
+        //     .into_iter()
+        //     .filter(|c| c.coordinate == Some(coordinate))
+        //     .collect();
+        //
+        // return raw_cell.first().cloned();
     }
 
     fn get_raw_col_info(&self, coordinate: Coordinate) -> Option<XlsxColumnInformation> {
@@ -757,17 +767,22 @@ impl Worksheet {
     }
 
     fn get_raw_row(&self, coordinate: Coordinate) -> Option<XlsxRow> {
-        let Some(sheet_data) = self.raw_sheet.clone().sheet_data else {
-            return None;
-        };
-
-        let rows = sheet_data.rows.unwrap_or(vec![]);
-        let row: Vec<XlsxRow> = rows
-            .into_iter()
-            .filter(|r| r.row_index == Some(coordinate.row))
-            .collect();
-
-        return row.first().cloned();
+        let sheet_data = self.raw_sheet.sheet_data.as_ref()?;
+        sheet_data.rows.as_ref()?.get(coordinate.row as usize).cloned()
+        // self.raw_sheet.sheet_data?.rows?.get(coordinate.row as usize).cloned()
+        // let Some(sheet_data) = self.raw_sheet.clone().sheet_data else {
+        //     return None;
+        // };
+        //
+        // // let rows = sheet_data.rows.unwrap_or(vec![]);
+        // // rows.get(coordinate.row)
+        // // let row: Vec<XlsxRow> = rows
+        // //     .into_iter()
+        // //     .filter(|r| r.row_index == Some(coordinate.row))
+        // //     .collect();
+        // //
+        // // return row.first().cloned();
+        // sheet_data.rows?.get(coordinate.row as usize).cloned()
     }
 
     fn get_cell_format(&self, xf_id: u64) -> Option<XlsxCellFormat> {
