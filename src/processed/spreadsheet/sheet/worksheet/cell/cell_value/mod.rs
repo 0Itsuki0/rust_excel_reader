@@ -92,7 +92,6 @@ impl CellValueType {
             if cell.r#type.is_none() {
                 return Ok(Self::from_numeric_string(&v.raw_value));
             }
-
             return match cell.r#type.unwrap().as_ref() {
                 "b" => Ok(Self::Bool(string_to_bool(&v.raw_value).unwrap_or(true))),
                 "d" => Ok(Self::DateTime(v.raw_value)),
@@ -108,7 +107,7 @@ impl CellValueType {
                     Self::from_string_item(string_item, stylesheet.clone(), color_scheme.clone())
                 }
                 // formula string
-                "str" => bail!("cell has type str (formula) without <f> elements"),
+                "str" => Ok(Self::from_numeric_string(&v.raw_value)), //bail!("cell has type str (formula) without <f> elements"),
                 // inline string
                 "is" | "inlineStr" => bail!("cell has type inline string without <is> elements"),
                 t => {
